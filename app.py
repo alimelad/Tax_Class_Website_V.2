@@ -46,8 +46,8 @@ def filter_data(df, policy, refund, ctc_c, u6_bonus, ps):
 def build_summary_table(base_vals, reform_vals):
     headers = ['', 'Baseline Policy', 'Reform Policy', 'Difference']
     rows = [
-        ('Annual Value of All Child Tax Benefits (2021 $)', base_vals['value_all'], reform_vals['value_all']),
-        ('Annual Value of Child Tax Credit (2021 $)', base_vals['value_ctc'], reform_vals['value_ctc']),
+        ('Annual Value of All Child Tax Benefits (2025 $)', base_vals['value_all'], reform_vals['value_all']),
+        ('Annual Value of Child Tax Credit (2025 $)', base_vals['value_ctc'], reform_vals['value_ctc']),
         ('Average Total Benefit ($)', base_vals['mean'], reform_vals['mean']),
         ('Percent Change in After-Tax Income (%)', base_vals['pc_aftertaxinc'], reform_vals['pc_aftertaxinc']),
         ('EMTR on Labor (%)', base_vals['metr_reform'], reform_vals['metr_reform']),
