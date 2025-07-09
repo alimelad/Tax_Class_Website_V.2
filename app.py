@@ -28,26 +28,23 @@ poverty_df = load_data("poverty_estimates.csv")
 dists_df = load_data("dist_estimates.csv")
 params_df = load_data("params_data.csv")
 
-def filter_data(df, policy, refund, ctc_c, u6_bonus, ps):
-    if policy in ["cl", "biden", "wnm", "fsa", "house25", "senate25"]:
+def filter_data(df, policy, refund, ctc_c, ps):
+    if policy in ["cl", "tcja", "house25", "senate25"]:
         lookup = {
-            "cl": "CL",
-            "biden": "Biden",
-            "wnm": "WNM",
-            "fsa": "Romney",
-            "house25": "House25",
-            "senate25": "Senate25"
+            "cl": "CL",           # Current Law (TCJA expires)
+            "tcja": "TCJA",       # TCJA Extension
+            "house25": "House25", # House OBBB
+            "senate25": "Senate25" # Senate OBBB
         }
         return df[df["type"] == lookup[policy]]
     elif policy == "custom":
-        return df[(df["type"] == refund) & (df["ctc_c"] == ctc_c) & (df["u6_bonus"] == u6_bonus) & (df["ps"] == ps)]
+        return df[(df["type"] == refund) & (df["ctc_c"] == ctc_c) & (df["ps"] == ps)]
     return pd.DataFrame()
 
 def build_summary_table(base_vals, reform_vals):
     headers = ['', 'Baseline Policy', 'Reform Policy', 'Difference']
     rows = [
-        ('Annual Value of All Child Tax Benefits (2025 $)', base_vals['value_all'], reform_vals['value_all']),
-        ('Annual Value of Child Tax Credit (2025 $)', base_vals['value_ctc'], reform_vals['value_ctc']),
+        ('Annual Value of Child Tax Credit (2025 $Billions)', base_vals['value_ctc'], reform_vals['value_ctc']),
         ('Average Total Benefit ($)', base_vals['mean'], reform_vals['mean']),
         ('Percent Change in After-Tax Income (%)', base_vals['pc_aftertaxinc'], reform_vals['pc_aftertaxinc']),
         ('EMTR on Labor (%)', base_vals['metr_reform'], reform_vals['metr_reform']),
@@ -64,6 +61,17 @@ def build_summary_table(base_vals, reform_vals):
         header=dict(values=headers, fill_color='#008CCC', font=dict(color='white', size=14), height=30),
         cells=dict(values=cells, fill_color='#F9F9F9', font=dict(color='#414141', size=14), height=30, align=['left','center'])
     )])
+
+    # Add the note below the table
+    fig.add_annotation(
+        text="*For this version of the calculator, it assumes that the TCJA expired and was never extended as the current law.*",
+        showarrow=False,
+        xref="paper", yref="paper",
+        x=0, y=-0.2,
+        xanchor="left", yanchor="top",
+        font=dict(size=12, color="gray"),
+    )
+
     fig.update_layout(title={"text": 'Comparing Baseline and Reform', 'y':0.9, 'x':0.5, 'xanchor': 'center'})
     return fig
 
@@ -71,7 +79,6 @@ def build_param_table(base_vals, reform_vals):
     headers = ['', 'Baseline Policy', 'Reform Policy']
     rows = [
         ('Maximum Credit Amount', base_vals['max_c'], reform_vals['max_c']),
-        ('Bonus Under 6', base_vals['bon6'], reform_vals['bon6']),
         ('Max Refundable Amount', base_vals['max_r'], reform_vals['max_r']),
         ('Qualifying Ages', base_vals['q_age'], reform_vals['q_age']),
         ('Refund Threshold', base_vals['thresh'], reform_vals['thresh']),
@@ -97,24 +104,30 @@ app.layout = html.Div([
     html.H3("Child Tax Credit Reform Dashboard"),
 
     html.Label("Baseline Policy"),
-    dcc.Dropdown(id="base", options=[
-        {"label": "Current Policy", "value": "cl"},
-        {"label": "Biden Proposal", "value": "biden"},
-        {"label": "Ways & Means", "value": "wnm"},
-        {"label": "Family Security Act", "value": "fsa"},
-        {"label": "House OBBB 2025", "value": "house25"},
-        {"label": "Senate OBBB 2025", "value": "senate25"}
-    ], value="cl", clearable=False),
+    dcc.Dropdown(
+        id="base",
+        options=[
+            {"label": "Current Policy (TCJA Expires)", "value": "cl"},
+            {"label": "TCJA Extension", "value": "tcja"},
+            {"label": "House Draft", "value": "house25"},
+            {"label": "Senate Passed Draft", "value": "senate25"}
+        ],
+        value="cl",
+        clearable=False
+    ),
 
     html.Label("Reform Policy"),
-    dcc.Dropdown(id="reform", options=[
-        {"label": "Biden Proposal", "value": "biden"},
-        {"label": "Ways & Means", "value": "wnm"},
-        {"label": "Family Security Act", "value": "fsa"},
-        {"label": "House OBBB 2025", "value": "house25"},
-        {"label": "Senate OBBB 2025", "value": "senate25"},
-        {"label": "Custom CTC Reform", "value": "custom"}
-    ], value="biden", clearable=False),
+    dcc.Dropdown(
+        id="reform",
+        options=[
+            {"label": "TCJA Extension", "value": "tcja"},
+            {"label": "House Draft", "value": "house25"},
+            {"label": "Senate Passed Draft", "value": "senate25"},
+            {"label": "Custom CTC Reform", "value": "custom"}
+        ],
+        value="tcja",
+        clearable=False
+    ),
 
     html.Div(id='custom-container', children=[
         html.Label("Max Credit Value"),
@@ -125,13 +138,6 @@ app.layout = html.Div([
             {"label": "$3000", "value": 3000},
             {"label": "$3500", "value": 3500},
         ], value=2000, clearable=False),
-
-        html.Label("Bonus Under 6"),
-        dcc.Dropdown(id="u6_bonus", options=[
-            {"label": "$0", "value": 0},
-            {"label": "$500", "value": 500},
-            {"label": "$1000", "value": 1000},
-        ], value=0, clearable=False),
 
         html.Label("Refundability"),
         dcc.Dropdown(id="refund", options=[
@@ -162,21 +168,20 @@ def toggle_custom(reform):
 @app.callback(
     Output("main-graph", "figure"),
     Input("base", "value"), Input("reform", "value"), Input("refund", "value"),
-    Input("ctc_c", "value"), Input("u6_bonus", "value"), Input("ps", "value"),
+    Input("ctc_c", "value"), Input("ps", "value"),
     Input("tabs", "value")
 )
-def update_graph(base, reform, refund, ctc_c, u6_bonus, ps, tabs):
-    base_bud = filter_data(budget_df, base, refund, ctc_c, u6_bonus, ps)
-    reform_bud = filter_data(budget_df, reform, refund, ctc_c, u6_bonus, ps)
-    base_pov = filter_data(poverty_df, base, refund, ctc_c, u6_bonus, ps)
-    reform_pov = filter_data(poverty_df, reform, refund, ctc_c, u6_bonus, ps)
-    base_fig = filter_data(dists_df, base, refund, ctc_c, u6_bonus, ps)
-    reform_fig = filter_data(dists_df, reform, refund, ctc_c, u6_bonus, ps)
-    base_param = filter_data(params_df, base, refund, ctc_c, u6_bonus, ps)
-    reform_param = filter_data(params_df, reform, refund, ctc_c, u6_bonus, ps)
+def update_graph(base, reform, refund, ctc_c, ps, tabs):
+    base_bud = filter_data(budget_df, base, refund, ctc_c, ps)
+    reform_bud = filter_data(budget_df, reform, refund, ctc_c, ps)
+    base_pov = filter_data(poverty_df, base, refund, ctc_c, ps)
+    reform_pov = filter_data(poverty_df, reform, refund, ctc_c, ps)
+    base_fig = filter_data(dists_df, base, refund, ctc_c, ps)
+    reform_fig = filter_data(dists_df, reform, refund, ctc_c, ps)
+    base_param = filter_data(params_df, base, refund, ctc_c, ps)
+    reform_param = filter_data(params_df, reform, refund, ctc_c, ps)
 
     base_vals = {
-        'value_all': base_bud['value_all'].values[0],
         'value_ctc': base_bud['value_ctc'].values[0],
         'mean': base_fig[base_fig['decile']=="ALL"]['mean'].values[0],
         'pc_aftertaxinc': base_fig[base_fig['decile']=="ALL"]['pc_aftertaxinc'].values[0],
@@ -184,7 +189,6 @@ def update_graph(base, reform, refund, ctc_c, u6_bonus, ps, tabs):
         'spm_all': base_pov['spm_all'].values[0],
         'spm_u18': base_pov['spm_u18'].values[0],
         'max_c': base_param['max_c'].values[0],
-        'bon6': base_param['bon6'].values[0],
         'max_r': base_param['max_r'].values[0],
         'q_age': base_param['q_age'].values[0],
         'thresh': base_param['thresh'].values[0],
@@ -194,7 +198,6 @@ def update_graph(base, reform, refund, ctc_c, u6_bonus, ps, tabs):
     }
 
     reform_vals = {
-        'value_all': reform_bud['value_all'].values[0],
         'value_ctc': reform_bud['value_ctc'].values[0],
         'mean': reform_fig[reform_fig['decile']=="ALL"]['mean'].values[0],
         'pc_aftertaxinc': reform_fig[reform_fig['decile']=="ALL"]['pc_aftertaxinc'].values[0],
@@ -202,7 +205,6 @@ def update_graph(base, reform, refund, ctc_c, u6_bonus, ps, tabs):
         'spm_all': reform_pov['spm_all'].values[0],
         'spm_u18': reform_pov['spm_u18'].values[0],
         'max_c': reform_param['max_c'].values[0],
-        'bon6': reform_param['bon6'].values[0],
         'max_r': reform_param['max_r'].values[0],
         'q_age': reform_param['q_age'].values[0],
         'thresh': reform_param['thresh'].values[0],
