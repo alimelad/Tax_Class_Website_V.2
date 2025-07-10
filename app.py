@@ -29,21 +29,18 @@ dists_df = load_data("dist_estimates.csv")
 params_df = load_data("params_data.csv")
 
 def filter_data(df, policy, refund, ctc_c, u6_bonus, ps):
-    if policy in ["cl", "tcja", "house25", "senate25"]:
+    if policy in ["cl", "biden", "wnm", "fsa", "house25", "senate25"]:
         lookup = {
-            "cl": "CL",           # Current Law (TCJA expires)
-            "tcja": "TCJA",       # TCJA Extension
-            "house25": "House25", # House OBBB
-            "senate25": "Senate25" # Senate OBBB
+            "cl": "CL",
+            "biden": "Biden",
+            "wnm": "WNM",
+            "fsa": "Romney",
+            "house25": "House25",
+            "senate25": "Senate25"
         }
         return df[df["type"] == lookup[policy]]
     elif policy == "custom":
-        return df[
-            (df["type"] == refund)
-            & (df["ctc_c"] == ctc_c)
-            & (df["u6_bonus"] == u6_bonus)
-            & (df["ps"] == ps)
-        ]
+        return df[(df["type"] == refund) & (df["ctc_c"] == ctc_c) & (df["u6_bonus"] == u6_bonus) & (df["ps"] == ps)]
     return pd.DataFrame()
 
 def build_summary_table(base_vals, reform_vals):
@@ -63,11 +60,11 @@ def build_summary_table(base_vals, reform_vals):
              [round(r - b, 1) for b, r in zip(list(zip(*rows))[1], list(zip(*rows))[2])]]
 
     fig = go.Figure(data=[go.Table(
-        columnorder=[1, 2, 3, 4], columnwidth=[60, 14, 14, 12],
+        columnorder=[1,2,3,4], columnwidth=[60,14,14,12],
         header=dict(values=headers, fill_color='#008CCC', font=dict(color='white', size=14), height=30),
-        cells=dict(values=cells, fill_color='#F9F9F9', font=dict(color='#414141', size=14), height=30, align=['left', 'center'])
+        cells=dict(values=cells, fill_color='#F9F9F9', font=dict(color='#414141', size=14), height=30, align=['left','center'])
     )])
-    fig.update_layout(title={"text": 'Comparing Baseline and Reform', 'y': 0.9, 'x': 0.5, 'xanchor': 'center'})
+    fig.update_layout(title={"text": 'Comparing Baseline and Reform', 'y':0.9, 'x':0.5, 'xanchor': 'center'})
     return fig
 
 def build_param_table(base_vals, reform_vals):
@@ -85,11 +82,11 @@ def build_param_table(base_vals, reform_vals):
     cells = [list(zip(*rows))[0], [v for v in list(zip(*rows))[1]], [v for v in list(zip(*rows))[2]]]
 
     fig = go.Figure(data=[go.Table(
-        columnorder=[1, 2, 3], columnwidth=[40, 30, 30],
+        columnorder=[1,2,3], columnwidth=[40,30,30],
         header=dict(values=headers, fill_color='#008CCC', font=dict(color='white', size=14), height=30),
-        cells=dict(values=cells, fill_color='#F9F9F9', font=dict(color='#414141', size=13), height=26, align=['left', 'center'])
+        cells=dict(values=cells, fill_color='#F9F9F9', font=dict(color='#414141', size=13), height=26, align=['left','center'])
     )])
-    fig.update_layout(title={"text": 'Policy Parameters', 'y': 0.9, 'x': 0.5, 'xanchor': 'center'})
+    fig.update_layout(title={"text": 'Policy Parameters', 'y':0.9, 'x':0.5, 'xanchor': 'center'})
     return fig
 
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
@@ -102,18 +99,22 @@ app.layout = html.Div([
     html.Label("Baseline Policy"),
     dcc.Dropdown(id="base", options=[
         {"label": "Current Policy", "value": "cl"},
-        {"label": "TCJA Extension", "value": "tcja"},
+        {"label": "Biden Proposal", "value": "biden"},
+        {"label": "Ways & Means", "value": "wnm"},
+        {"label": "Family Security Act", "value": "fsa"},
         {"label": "House OBBB 2025", "value": "house25"},
         {"label": "Senate OBBB 2025", "value": "senate25"}
     ], value="cl", clearable=False),
 
     html.Label("Reform Policy"),
     dcc.Dropdown(id="reform", options=[
-        {"label": "TCJA Extension", "value": "tcja"},
+        {"label": "Biden Proposal", "value": "biden"},
+        {"label": "Ways & Means", "value": "wnm"},
+        {"label": "Family Security Act", "value": "fsa"},
         {"label": "House OBBB 2025", "value": "house25"},
         {"label": "Senate OBBB 2025", "value": "senate25"},
         {"label": "Custom CTC Reform", "value": "custom"}
-    ], value="tcja", clearable=False),
+    ], value="biden", clearable=False),
 
     html.Div(id='custom-container', children=[
         html.Label("Max Credit Value"),
@@ -134,7 +135,7 @@ app.layout = html.Div([
 
         html.Label("Refundability"),
         dcc.Dropdown(id="refund", options=[
-            {"label": "Non-Refundable", "value": "Nonref"},
+            {"label": "Current Policy", "value": "Nonref"},
             {"label": "Fully Refundable", "value": "Refund"},
         ], value="Nonref", clearable=False),
 
